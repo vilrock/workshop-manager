@@ -1,0 +1,120 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <h1>Customers</h1>
+      <p>People and companies that bring vehicles to the shop.</p>
+    </div>
+    <button class="btn btn-primary" type="button" (click)="openCreate()"><app-icon name="plus" [size]="16" /> New customer</button>
+  </header>
+
+  <div class="toolbar">
+    <label class="search">
+      <span class="sr-only">Search customers</span>
+      <app-icon name="search" [size]="16" />
+      <input class="input" type="search" placeholder="Search by name, email or phone" [formControl]="searchControl" />
+    </label>
+  </div>
+
+  <div class="card">
+    @if (loading() && !result()) {
+      <div class="card-body">
+        @for (row of [1, 2, 3, 4, 5]; track row) {
+          <span class="skeleton" style="height: 40px; margin-bottom: 10px"></span>
+        }
+      </div>
+    } @else if (errorMessage(); as message) {
+      <app-data-state kind="error" heading="Customers could not load" [message]="message" (retry)="load()" />
+    } @else if (result(); as data) {
+      @if (data.items.length === 0) {
+        <app-data-state heading="No customers found" [message]="searchControl.value ? 'Try a different name, email or phone number.' : 'Add the first customer to get started.'" icon="users">
+          @if (!searchControl.value) {
+            <button class="btn btn-primary btn-sm" type="button" (click)="openCreate()">New customer</button>
+          }
+        </app-data-state>
+      } @else {
+        <div class="table-wrap" [style.opacity]="loading() ? 0.55 : 1">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Phone</th>
+                <th>Vehicles</th>
+                <th>Status</th>
+                <th>Since</th>
+                <th><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (customer of data.items; track customer.customerId) {
+                <tr>
+                  <td>
+                    <div class="cell-title">{{ customer.fullName }}</div>
+                    <div class="cell-sub">{{ customer.email }}</div>
+                  </td>
+                  <td class="num">{{ customer.phone }}</td>
+                  <td>
+                    <a class="btn btn-sm btn-ghost" routerLink="/vehicles" [queryParams]="{ customerId: customer.customerId }"><app-icon name="car" [size]="14" /> {{ customer.vehicleCount }}</a>
+                  </td>
+                  <td>
+                    <span class="pill" [class.pill-success]="customer.isActive" [class.pill-muted]="!customer.isActive">{{ customer.isActive ? 'Active' : 'Inactive' }}</span>
+                  </td>
+                  <td class="muted num">{{ customer.createdAtUtc | date: 'MMM d, y' }}</td>
+                  <td class="right">
+                    <button class="btn btn-sm" type="button" (click)="openEdit(customer)"><app-icon name="pencil" [size]="14" /> Edit</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-pagination [page]="data.page" [pageSize]="data.pageSize" [totalCount]="data.totalCount" [totalPages]="data.totalPages" (pageChange)="changePage($event)" />
+      }
+    }
+  </div>
+</section>
+
+@if (editing(); as target) {
+  <app-modal [heading]="target === 'new' ? 'New customer' : 'Edit customer'" (closed)="closeForm()">
+    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="form-grid">
+        <div class="field full">
+          <label for="customer-name">Full name</label>
+          <input id="customer-name" class="input" formControlName="fullName" autocomplete="off" [class.invalid]="isInvalid('fullName')" />
+          @if (isInvalid('fullName')) {
+            <span class="field-error">Enter the customer's name (up to 120 characters).</span>
+          }
+        </div>
+        <div class="field">
+          <label for="customer-email">Email</label>
+          <input id="customer-email" class="input" type="email" formControlName="email" autocomplete="off" [class.invalid]="isInvalid('email')" />
+          @if (isInvalid('email')) {
+            <span class="field-error">Enter a valid email address.</span>
+          }
+        </div>
+        <div class="field">
+          <label for="customer-phone">Phone</label>
+          <input id="customer-phone" class="input" type="tel" formControlName="phone" autocomplete="off" [class.invalid]="isInvalid('phone')" />
+          @if (isInvalid('phone')) {
+            <span class="field-error">Use 7 to 25 digits, spaces or + ( ) -</span>
+          }
+        </div>
+        <div class="field full">
+          <label for="customer-address">Address <span class="muted">(optional)</span></label>
+          <input id="customer-address" class="input" formControlName="address" autocomplete="off" [class.invalid]="isInvalid('address')" />
+        </div>
+        @if (target !== 'new') {
+          <label class="checkbox full"><input type="checkbox" formControlName="isActive" /> Active customer</label>
+        }
+      </div>
+
+      @if (formError(); as message) {
+        <p class="field-error" role="alert" style="margin-top: 14px">{{ message }}</p>
+      }
+
+      <div class="toolbar" style="justify-content: flex-end; margin-top: 20px">
+        <button class="btn" type="button" (click)="closeForm()">Cancel</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ saving() ? 'Saving...' : target === 'new' ? 'Create customer' : 'Save changes' }}</button>
+      </div>
+    </form>
+  </app-modal>
+}

@@ -1,0 +1,133 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <h1>Good to see you, {{ firstName() }}</h1>
+      <p>
+        @if (auth.role() === 'Mechanic') {
+          Your assigned jobs at a glance.
+        } @else {
+          Where every job in the shop stands today.
+        }
+      </p>
+    </div>
+    @if (auth.isStaffFrontDesk()) {
+      <a class="btn btn-primary" routerLink="/work-orders" [queryParams]="{ new: 1 }"><app-icon name="plus" [size]="16" /> New work order</a>
+    }
+  </header>
+
+  @if (loading()) {
+    <div class="kpis">
+      @for (placeholder of [1, 2, 3, 4]; track placeholder) {
+        <div class="card kpi"><span class="skeleton" style="width: 40%; height: 12px"></span><span class="skeleton" style="width: 60%; height: 30px"></span></div>
+      }
+    </div>
+    <div class="grid">
+      <div class="card panel"><span class="skeleton" style="height: 220px"></span></div>
+      <div class="card panel"><span class="skeleton" style="height: 220px"></span></div>
+    </div>
+  } @else if (errorMessage(); as message) {
+    <div class="card">
+      <app-data-state kind="error" heading="The dashboard could not load" [message]="message" (retry)="load()" />
+    </div>
+  } @else if (stats(); as data) {
+    <div class="kpis">
+      <article class="card kpi">
+        <span class="kpi-label">Open orders</span>
+        <strong class="kpi-value num">{{ data.openOrders }}</strong>
+        <span class="kpi-note">Received to in progress</span>
+      </article>
+      <article class="card kpi">
+        <span class="kpi-label">Completed this month</span>
+        <strong class="kpi-value num">{{ data.completedThisMonth }}</strong>
+        <span class="kpi-note">Jobs finished since the 1st</span>
+      </article>
+      <article class="card kpi accent">
+        <span class="kpi-label">Revenue this month</span>
+        <strong class="kpi-value num">{{ data.monthlyRevenue | currency: 'USD' : 'symbol' : '1.0-0' }}</strong>
+        <span class="kpi-note">From completed and delivered orders</span>
+      </article>
+      <article class="card kpi">
+        <span class="kpi-label">Avg. time to complete</span>
+        <strong class="kpi-value num">
+          @if (data.averageHoursToComplete !== null) {
+            {{ data.averageHoursToComplete | number: '1.0-1' }}<small>h</small>
+          } @else {
+            -
+          }
+        </strong>
+        <span class="kpi-note">
+          @if (data.averageHoursToDiagnose !== null) {
+            Diagnosis in {{ data.averageHoursToDiagnose | number: '1.0-1' }}h on average
+          } @else {
+            No diagnosis data yet
+          }
+        </span>
+      </article>
+    </div>
+
+    <div class="grid">
+      <section class="card panel" aria-labelledby="status-heading">
+        <h2 id="status-heading">Orders by status</h2>
+        <ul class="bars">
+          @for (bar of statusBars(); track bar.status) {
+            <li>
+              <span class="bar-label">{{ bar.label }}</span>
+              <span class="bar-track"><span class="bar-fill" [style.width.%]="bar.share" [style.background]="bar.color"></span></span>
+              <span class="bar-count num">{{ bar.count }}</span>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <section class="card panel" aria-labelledby="revenue-heading">
+        <h2 id="revenue-heading">Revenue, last 6 months</h2>
+        <div class="columns" role="img" aria-label="Monthly revenue">
+          @for (column of revenueColumns(); track column.month) {
+            <div class="column" [class.current]="column.isCurrent">
+              <span class="column-value num">{{ column.revenue | currency: 'USD' : 'symbol' : '1.0-0' }}</span>
+              <span class="column-bar" [style.height.%]="column.height"></span>
+              <span class="column-label">{{ column.label }}</span>
+            </div>
+          }
+        </div>
+      </section>
+    </div>
+
+    <section class="card" aria-labelledby="recent-heading">
+      <div class="card-header">
+        <h2 id="recent-heading">Recent activity</h2>
+        <a class="btn btn-sm" routerLink="/work-orders">All work orders <app-icon name="arrow-right" [size]="14" /></a>
+      </div>
+      @if (data.recentOrders.length === 0) {
+        <app-data-state heading="No work orders yet" message="Orders will show up here as soon as they are created." icon="clipboard" />
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Customer</th>
+                <th>Vehicle</th>
+                <th>Status</th>
+                <th class="right">Total</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (order of data.recentOrders; track order.workOrderId) {
+                <tr class="clickable">
+                  <td><a class="order-tag" [routerLink]="['/work-orders', order.workOrderId]">{{ order.orderNumber }}</a></td>
+                  <td><span class="cell-title">{{ order.customerName }}</span></td>
+                  <td class="muted">{{ order.vehicleDescription }}</td>
+                  <td><app-status-badge [status]="order.status" /></td>
+                  <td class="right num">{{ order.totalAmount | currency: 'USD' }}</td>
+                  <td class="muted num">{{ order.updatedAtUtc | date: 'MMM d, h:mm a' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+</section>

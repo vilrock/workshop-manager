@@ -1,0 +1,147 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <h1>Work orders</h1>
+      <p>
+        @if (auth.role() === 'Mechanic') {
+          Jobs assigned to you.
+        } @else {
+          Every repair job in the shop, from check-in to handover.
+        }
+      </p>
+    </div>
+    <div class="toolbar">
+      <div class="segmented" role="group" aria-label="View mode">
+        <button type="button" [class.active]="mode() === 'list'" [attr.aria-pressed]="mode() === 'list'" (click)="setMode('list')"><app-icon name="list" [size]="16" /> List</button>
+        <button type="button" [class.active]="mode() === 'board'" [attr.aria-pressed]="mode() === 'board'" (click)="setMode('board')"><app-icon name="board" [size]="16" /> Board</button>
+      </div>
+      @if (auth.isStaffFrontDesk()) {
+        <button class="btn btn-primary" type="button" (click)="openCreate()"><app-icon name="plus" [size]="16" /> New work order</button>
+      }
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <label class="search">
+      <span class="sr-only">Search work orders</span>
+      <app-icon name="search" [size]="16" />
+      <input class="input" type="search" placeholder="Search by order, customer, plate or issue" [formControl]="searchControl" />
+    </label>
+    @if (mode() === 'list') {
+      <label class="filter">
+        <span class="sr-only">Filter by status</span>
+        <select class="select" [formControl]="statusControl">
+          <option value="">All statuses</option>
+          @for (status of statuses; track status) {
+            <option [value]="status">{{ statusLabels[status] }}</option>
+          }
+        </select>
+      </label>
+    }
+    @if (auth.isStaffFrontDesk()) {
+      <label class="filter">
+        <span class="sr-only">Filter by mechanic</span>
+        <select class="select" [formControl]="mechanicControl">
+          <option value="">All mechanics</option>
+          @for (mechanic of mechanics(); track mechanic.userId) {
+            <option [value]="mechanic.userId">{{ mechanic.fullName }}</option>
+          }
+        </select>
+      </label>
+    }
+  </div>
+
+  @if (loading() && !result()) {
+    <div class="card card-body">
+      @for (row of [1, 2, 3, 4, 5]; track row) {
+        <span class="skeleton" style="height: 40px; margin-bottom: 10px"></span>
+      }
+    </div>
+  } @else if (errorMessage(); as message) {
+    <div class="card">
+      <app-data-state kind="error" heading="Work orders could not load" [message]="message" (retry)="load()" />
+    </div>
+  } @else if (result(); as data) {
+    @if (mode() === 'list') {
+      <div class="card">
+        @if (data.items.length === 0) {
+          <app-data-state heading="No work orders match" message="Adjust the filters or create a new work order." icon="clipboard" />
+        } @else {
+          <div class="table-wrap" [style.opacity]="loading() ? 0.55 : 1">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Customer and vehicle</th>
+                  <th>Issue</th>
+                  <th>Status</th>
+                  <th>Mechanic</th>
+                  <th class="right">Total</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (order of data.items; track order.workOrderId) {
+                  <tr class="clickable" (click)="router.navigate(['/work-orders', order.workOrderId])">
+                    <td><a class="order-tag" [routerLink]="['/work-orders', order.workOrderId]" (click)="$event.stopPropagation()">{{ order.orderNumber }}</a></td>
+                    <td>
+                      <div class="cell-title">{{ order.customerName }}</div>
+                      <div class="cell-sub">{{ order.vehicleDescription }}</div>
+                    </td>
+                    <td class="issue">{{ order.description }}</td>
+                    <td><app-status-badge [status]="order.status" /></td>
+                    <td>{{ order.assignedMechanicName ?? 'Unassigned' }}</td>
+                    <td class="right num">{{ order.totalAmount | currency: 'USD' }}</td>
+                    <td class="muted num">{{ order.updatedAtUtc | date: 'MMM d, h:mm a' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <app-pagination [page]="data.page" [pageSize]="data.pageSize" [totalCount]="data.totalCount" [totalPages]="data.totalPages" (pageChange)="changePage($event)" />
+        }
+      </div>
+    } @else {
+      <div class="board" [style.opacity]="loading() ? 0.6 : 1">
+        @for (column of columns(); track column.status) {
+          <section class="column" [attr.aria-label]="column.label">
+            <header class="column-header">
+              <span class="column-dot" [style.background]="column.color"></span>
+              <h2>{{ column.label }}</h2>
+              <span class="column-count num">{{ column.orders.length }}</span>
+            </header>
+            <div class="column-body">
+              @for (order of column.orders; track order.workOrderId) {
+                <article class="ticket" [style.--tone]="column.color">
+                  <a class="ticket-link" [routerLink]="['/work-orders', order.workOrderId]">
+                    <div class="ticket-top">
+                      <span class="mono">{{ order.orderNumber }}</span>
+                      <span class="num ticket-total">{{ order.totalAmount | currency: 'USD' : 'symbol' : '1.0-0' }}</span>
+                    </div>
+                    <strong>{{ order.customerName }}</strong>
+                    <span class="ticket-vehicle">{{ order.vehicleDescription }}</span>
+                    <span class="ticket-issue">{{ order.description }}</span>
+                  </a>
+                  <footer class="ticket-footer">
+                    <span class="ticket-mechanic"><app-icon name="wrench" [size]="13" /> {{ order.assignedMechanicName ?? 'Unassigned' }}</span>
+                    @for (target of forwardTransitions(order); track target) {
+                      <button class="btn btn-sm btn-primary" type="button" [disabled]="advancingId() === order.workOrderId" (click)="advance(order, target)">
+                        {{ actionLabels[target] }} <app-icon name="arrow-right" [size]="13" />
+                      </button>
+                    }
+                  </footer>
+                </article>
+              } @empty {
+                <p class="column-empty">No orders</p>
+              }
+            </div>
+          </section>
+        }
+      </div>
+    }
+  }
+</section>
+
+@if (creating()) {
+  <app-new-work-order-dialog (created)="onCreated($event)" (closed)="closeCreate()" />
+}

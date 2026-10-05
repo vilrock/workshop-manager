@@ -1,0 +1,145 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <h1>Vehicles</h1>
+      <p>Every vehicle on file, linked to its owner.</p>
+    </div>
+    <button class="btn btn-primary" type="button" (click)="openCreate()"><app-icon name="plus" [size]="16" /> Add vehicle</button>
+  </header>
+
+  <div class="toolbar">
+    <label class="search">
+      <span class="sr-only">Search vehicles</span>
+      <app-icon name="search" [size]="16" />
+      <input class="input" type="search" placeholder="Search by plate, make, model or owner" [formControl]="searchControl" />
+    </label>
+    @if (filteredCustomerName(); as name) {
+      <span class="pill pill-muted">Owner: {{ name }}</span>
+      <button class="btn btn-sm btn-ghost" type="button" (click)="clearCustomerFilter()"><app-icon name="x" [size]="14" /> Clear filter</button>
+    }
+  </div>
+
+  <div class="card">
+    @if (loading() && !result()) {
+      <div class="card-body">
+        @for (row of [1, 2, 3, 4, 5]; track row) {
+          <span class="skeleton" style="height: 40px; margin-bottom: 10px"></span>
+        }
+      </div>
+    } @else if (errorMessage(); as message) {
+      <app-data-state kind="error" heading="Vehicles could not load" [message]="message" (retry)="load()" />
+    } @else if (result(); as data) {
+      @if (data.items.length === 0) {
+        <app-data-state heading="No vehicles found" [message]="searchControl.value || customerId() ? 'Try a different search or clear the filter.' : 'Add a vehicle to a customer to see it here.'" icon="car" />
+      } @else {
+        <div class="table-wrap" [style.opacity]="loading() ? 0.55 : 1">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Plate</th>
+                <th>Vehicle</th>
+                <th>Owner</th>
+                <th class="right">Mileage</th>
+                <th><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (vehicle of data.items; track vehicle.vehicleId) {
+                <tr>
+                  <td><span class="order-tag">{{ vehicle.licensePlate }}</span></td>
+                  <td>
+                    <div class="cell-title">{{ vehicle.year }} {{ vehicle.make }} {{ vehicle.model }}</div>
+                    <div class="cell-sub">{{ vehicle.color ?? 'Color not set' }}@if (vehicle.vin) { - VIN {{ vehicle.vin }} }</div>
+                  </td>
+                  <td>{{ vehicle.customerName }}</td>
+                  <td class="right num">{{ vehicle.mileageKm | number }} km</td>
+                  <td class="right">
+                    <button class="btn btn-sm" type="button" (click)="openEdit(vehicle)"><app-icon name="pencil" [size]="14" /> Edit</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-pagination [page]="data.page" [pageSize]="data.pageSize" [totalCount]="data.totalCount" [totalPages]="data.totalPages" (pageChange)="changePage($event)" />
+      }
+    }
+  </div>
+</section>
+
+@if (editing(); as target) {
+  <app-modal [heading]="target === 'new' ? 'Add vehicle' : 'Edit vehicle'" (closed)="closeForm()">
+    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="form-grid">
+        <div class="field full">
+          <label for="vehicle-customer">Owner</label>
+          @if (target === 'new') {
+            <select id="vehicle-customer" class="select" formControlName="customerId" [class.invalid]="isInvalid('customerId')">
+              <option value="">Select a customer</option>
+              @for (customer of customers(); track customer.customerId) {
+                <option [value]="customer.customerId">{{ customer.fullName }}</option>
+              }
+            </select>
+            @if (isInvalid('customerId')) {
+              <span class="field-error">Choose the vehicle owner.</span>
+            }
+          } @else {
+            <input id="vehicle-customer" class="input" [value]="target.customerName" disabled />
+          }
+        </div>
+        <div class="field">
+          <label for="vehicle-plate">License plate</label>
+          <input id="vehicle-plate" class="input" formControlName="licensePlate" autocomplete="off" [class.invalid]="isInvalid('licensePlate')" />
+          @if (isInvalid('licensePlate')) {
+            <span class="field-error">Enter the plate (up to 12 characters).</span>
+          }
+        </div>
+        <div class="field">
+          <label for="vehicle-year">Year</label>
+          <input id="vehicle-year" class="input" type="number" formControlName="year" [class.invalid]="isInvalid('year')" />
+          @if (isInvalid('year')) {
+            <span class="field-error">Enter a year between 1950 and next year.</span>
+          }
+        </div>
+        <div class="field">
+          <label for="vehicle-make">Make</label>
+          <input id="vehicle-make" class="input" formControlName="make" autocomplete="off" [class.invalid]="isInvalid('make')" />
+          @if (isInvalid('make')) {
+            <span class="field-error">Enter the make.</span>
+          }
+        </div>
+        <div class="field">
+          <label for="vehicle-model">Model</label>
+          <input id="vehicle-model" class="input" formControlName="model" autocomplete="off" [class.invalid]="isInvalid('model')" />
+          @if (isInvalid('model')) {
+            <span class="field-error">Enter the model.</span>
+          }
+        </div>
+        <div class="field">
+          <label for="vehicle-color">Color <span class="muted">(optional)</span></label>
+          <input id="vehicle-color" class="input" formControlName="color" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="vehicle-mileage">Mileage (km)</label>
+          <input id="vehicle-mileage" class="input" type="number" formControlName="mileageKm" [class.invalid]="isInvalid('mileageKm')" />
+          @if (isInvalid('mileageKm')) {
+            <span class="field-error">Enter a mileage from 0 to 2,000,000.</span>
+          }
+        </div>
+        <div class="field full">
+          <label for="vehicle-vin">VIN <span class="muted">(optional, 17 characters)</span></label>
+          <input id="vehicle-vin" class="input" formControlName="vin" autocomplete="off" [class.invalid]="isInvalid('vin')" />
+        </div>
+      </div>
+
+      @if (formError(); as message) {
+        <p class="field-error" role="alert" style="margin-top: 14px">{{ message }}</p>
+      }
+
+      <div class="toolbar" style="justify-content: flex-end; margin-top: 20px">
+        <button class="btn" type="button" (click)="closeForm()">Cancel</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ saving() ? 'Saving...' : target === 'new' ? 'Add vehicle' : 'Save changes' }}</button>
+      </div>
+    </form>
+  </app-modal>
+}

@@ -1,0 +1,14 @@
+**/bin
+**/obj
+**/node_modules
+**/.angular
+**/dist
+.git
+.gitignore
+.env
+.env.*
+tests
+web
+docs
+sql
+*.md

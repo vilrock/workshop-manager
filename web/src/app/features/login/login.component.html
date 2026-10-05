@@ -1,0 +1,70 @@
+<div class="login">
+  <section class="brand-panel">
+    <div class="brand">
+      <span class="mark">
+        <svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+          <path d="M19.6 8.4a1.6 1.6 0 0 0 0 2.2l1.2 1.2a1.6 1.6 0 0 0 2.2 0l2.8-2.8a6 6 0 0 1-7.6 7.6l-7.4 7.4a2.1 2.1 0 0 1-3-3l7.4-7.4a6 6 0 0 1 7.6-7.6z" fill="currentColor" />
+        </svg>
+      </span>
+      <span class="wordmark">Workshop<span>Manager</span></span>
+    </div>
+
+    <div class="pitch">
+      <h2>Every job, from check-in to handover.</h2>
+      <p>Track customers, vehicles and work orders in one place. Each order moves through a controlled workflow, and every change is on the record.</p>
+
+      <ol class="rail" aria-label="Work order workflow">
+        @for (step of workflowSteps; track step) {
+          <li>{{ step }}</li>
+        }
+      </ol>
+    </div>
+
+    <p class="fine">Portfolio demo with fictional data.</p>
+  </section>
+
+  <section class="form-panel">
+    <form class="form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="heading">
+        <h1>Sign in</h1>
+        <p>Use a demo account below or enter your credentials.</p>
+      </div>
+
+      <div class="demo" role="group" aria-label="Demo accounts">
+        @for (account of demoAccounts; track account.email) {
+          <button type="button" class="demo-chip" (click)="useDemoAccount(account)">
+            <strong>{{ account.label }}</strong>
+            <span>{{ account.caption }}</span>
+          </button>
+        }
+      </div>
+
+      @if (errorMessage(); as message) {
+        <div class="alert" role="alert">
+          <app-icon name="alert" [size]="16" />
+          {{ message }}
+        </div>
+      }
+
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" class="input" type="email" autocomplete="username" formControlName="email" [class.invalid]="form.controls.email.touched && form.controls.email.invalid" />
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <span class="field-error">Enter a valid email address.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" class="input" type="password" autocomplete="current-password" formControlName="password" [class.invalid]="form.controls.password.touched && form.controls.password.invalid" />
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <span class="field-error">Enter your password.</span>
+        }
+      </div>
+
+      <button class="btn btn-primary submit" type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Signing in...' : 'Sign in' }}
+      </button>
+    </form>
+  </section>
+</div>
